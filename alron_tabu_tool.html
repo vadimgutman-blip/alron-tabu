@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>אלרון — מאגר בעלים טאבו</title>
+<script src="https://apis.google.com/js/api.js"></script>
+<script src="https://accounts.google.com/gsi/client"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; direction: rtl; background: #F7F8FA; color: #1A1D23; min-height: 100vh; }
+  
+  .topbar { background: #0F2D52; color: #fff; padding: 0 2rem; height: 56px; display: flex; align-items: center; gap: 12px; }
+  .topbar .logo { font-size: 18px; font-weight: 700; letter-spacing: -0.5px; }
+  .topbar .sub { font-size: 13px; opacity: 0.6; margin-right: 4px; }
+  .topbar .auth-btn { margin-right: auto; background: #fff; color: #0F2D52; border: none; padding: 7px 18px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .topbar .auth-btn:hover { background: #e8f0fe; }
+  .topbar .user-info { margin-right: auto; font-size: 13px; opacity: 0.85; display: flex; align-items: center; gap: 8px; }
+  .topbar .signout { background: transparent; border: 1px solid rgba(255,255,255,0.4); color: #fff; padding: 5px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; }
+
+  .main { max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+  .auth-screen { text-align: center; padding: 5rem 2rem; }
+  .auth-screen h2 { font-size: 24px; margin-bottom: 0.75rem; color: #0F2D52; }
+  .auth-screen p { color: #666; margin-bottom: 2rem; font-size: 15px; }
+  .auth-screen .big-btn { background: #0F2D52; color: #fff; border: none; padding: 14px 32px; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
+  .auth-screen .big-btn:hover { background: #1a4275; }
+
+  .tabs { display: flex; gap: 0; border-bottom: 2px solid #E5E7EB; margin-bottom: 1.5rem; }
+  .tab { padding: 10px 20px; font-size: 14px; cursor: pointer; color: #6B7280; border-bottom: 2px solid transparent; margin-bottom: -2px; font-weight: 500; }
+  .tab.active { color: #0F2D52; border-bottom-color: #0F2D52; }
+  .panel { display: none; } .panel.active { display: block; }
+
+  .card { background: #fff; border: 1px solid #E5E7EB; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.25rem; }
+  .card-title { font-size: 15px; font-weight: 600; color: #374151; margin-bottom: 1rem; display: flex; align-items: center; gap: 8px; }
+
+  .upload-zone { border: 2px dashed #D1D5DB; border-radius: 10px; padding: 2rem; text-align: center; cursor: pointer; position: relative; transition: all 0.15s; }
+  .upload-zone:hover, .upload-zone.drag { border-color: #0F2D52; background: #F0F4FF; }
+  .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .upload-zone .icon { font-size: 32px; margin-bottom: 8px; }
+  .upload-zone .label { font-size: 15px; color: #374151; margin-bottom: 4px; }
+  .upload-zone .hint { font-size: 12px; color: #9CA3AF; }
+
+  .file-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 0.75rem; }
+  .file-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; background: #F3F4F6; border-radius: 20px; padding: 4px 12px; }
+  .file-pill .x { cursor: pointer; color: #9CA3AF; font-size: 14px; line-height: 1; }
+  .file-pill .x:hover { color: #EF4444; }
+
+  .btn { padding: 0.7rem 1.5rem; font-size: 14px; font-weight: 600; border-radius: 8px; cursor: pointer; border: none; }
+  .btn-primary { background: #0F2D52; color: #fff; width: 100%; margin-top: 0.75rem; }
+  .btn-primary:hover { background: #1a4275; }
+  .btn-primary:disabled { background: #D1D5DB; color: #9CA3AF; cursor: not-allowed; }
+  .btn-outline { background: #fff; color: #374151; border: 1px solid #D1D5DB; }
+  .btn-outline:hover { background: #F9FAFB; }
+
+  .log { font-size: 12px; color: #6B7280; margin-top: 0.75rem; max-height: 120px; overflow-y: auto; line-height: 2; background: #F9FAFB; border-radius: 8px; padding: 0.5rem 0.75rem; }
+  .log div { padding: 1px 0; }
+
+  .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 1.5rem; }
+  .metric { background: #fff; border: 1px solid #E5E7EB; border-radius: 10px; padding: 1rem 1.25rem; }
+  .metric-label { font-size: 12px; color: #6B7280; margin-bottom: 6px; }
+  .metric-val { font-size: 28px; font-weight: 700; color: #1A1D23; }
+  .metric-val.warn { color: #D97706; }
+
+  .search-row { display: flex; gap: 8px; margin-bottom: 1rem; }
+  .search-row input { flex: 1; font-size: 14px; padding: 9px 14px; border-radius: 8px; border: 1px solid #D1D5DB; background: #fff; color: #1A1D23; }
+  .search-row input:focus { outline: none; border-color: #0F2D52; }
+
+  .filter-bar { display: flex; gap: 6px; margin-bottom: 1rem; flex-wrap: wrap; }
+  .chip { font-size: 12px; padding: 5px 14px; border-radius: 20px; cursor: pointer; border: 1px solid #D1D5DB; background: #F9FAFB; color: #6B7280; font-weight: 500; }
+  .chip.on { background: #0F2D52; color: #fff; border-color: #0F2D52; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; background: #fff; border-radius: 10px; overflow: hidden; }
+  th { text-align: right; padding: 10px 12px; font-weight: 600; color: #6B7280; background: #F9FAFB; border-bottom: 1px solid #E5E7EB; font-size: 12px; }
+  td { padding: 10px 12px; border-bottom: 1px solid #F3F4F6; color: #1A1D23; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr.dup { background: #FFFBEB; }
+
+  .badge { display: inline-block; font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 600; }
+  .badge-dup { background: #FEF3C7; color: #92400E; }
+  .badge-ok { background: #D1FAE5; color: #065F46; }
+
+  .dup-card { border: 1px solid #FDE68A; border-radius: 10px; padding: 1rem; margin-bottom: 0.75rem; background: #FFFBEB; }
+  .dup-name { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+  .dup-meta { font-size: 12px; color: #6B7280; margin-bottom: 8px; }
+  .loc-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .loc-tag { font-size: 12px; background: #fff; border: 1px solid #E5E7EB; border-radius: 6px; padding: 3px 10px; color: #374151; }
+
+  .spinner { display: inline-block; width: 15px; height: 15px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-left: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty { text-align: center; padding: 3rem; color: #9CA3AF; font-size: 14px; }
+  .hidden { display: none !important; }
+
+  .status-bar { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #6B7280; margin-top: 0.75rem; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .dot-green { background: #10B981; }
+  .dot-gray { background: #D1D5DB; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">אלרון</div>
+  <div class="sub">מאגר בעלים — נסחי טאבו</div>
+  <div id="auth-area-top">
+    <button class="auth-btn" onclick="signIn()">התחבר עם Google</button>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- מסך לא מחובר -->
+  <div id="auth-screen" class="auth-screen">
+    <div style="font-size:48px; margin-bottom:1rem;">📋</div>
+    <h2>מאגר בעלים משותף לצוות אלרון</h2>
+    <p>התחבר עם חשבון Google כדי לגשת למאגר המשותף<br>שכל הצוות עובד עליו</p>
+    <button class="big-btn" onclick="signIn()">התחבר עם Google</button>
+  </div>
+
+  <!-- תוכן ראשי -->
+  <div id="main-content" class="hidden">
+
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('scan')">📤 סריקת נסחים</div>
+      <div class="tab" onclick="switchTab('db')">🗃 מאגר בעלים</div>
+      <div class="tab" onclick="switchTab('dups')">⚠️ כפילויות <span id="dup-count-tab" style="display:none;background:#FEF3C7;color:#92400E;font-size:11px;padding:1px 7px;border-radius:20px;margin-right:4px;"></span></div>
+    </div>
+
+    <!-- טאב סריקה -->
+    <div id="panel-scan" class="panel active">
+      <div class="card">
+        <div class="card-title">📂 העלאת נסחי טאבו לסריקה</div>
+        <div class="upload-zone" id="upload-zone">
+          <input type="file" id="file-input" accept=".pdf,image/*" multiple />
+          <div class="icon">📄</div>
+          <div class="label">גרור קבצים לכאן או לחץ לבחירה</div>
+          <div class="hint">PDF סרוקים / JPG / PNG — ניתן לבחור מספר קבצים בבת אחת</div>
+        </div>
+        <div class="file-pills" id="file-pills"></div>
+        <button class="btn btn-primary" id="scan-btn" disabled onclick="runScan()">
+          🔍 סרוק והוסף למאגר
+        </button>
+        <div id="scan-log" class="log hidden"></div>
+        <div id="status-bar" class="status-bar hidden">
+          <div class="dot dot-green"></div>
+          <span id="status-text"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- טאב מאגר -->
+    <div id="panel-db" class="panel">
+      <div class="summary-grid">
+        <div class="metric"><div class="metric-label">סה"כ בעלים</div><div class="metric-val" id="s-total">0</div></div>
+        <div class="metric"><div class="metric-label">נסחים שנסרקו</div><div class="metric-val" id="s-files">0</div></div>
+        <div class="metric"><div class="metric-label">כפילויות</div><div class="metric-val warn" id="s-dups">0</div></div>
+      </div>
+      <div class="search-row">
+        <input id="db-search" type="text" placeholder='חיפוש לפי שם / ת"ז / גוש...' oninput="renderDB()" />
+        <button class="btn btn-outline" onclick="exportXLSX()">⬇ ייצוא Excel</button>
+        <button class="btn btn-outline" onclick="loadFromSheets()">🔄 רענן</button>
+      </div>
+      <div class="filter-bar">
+        <span class="chip on" id="f-all" onclick="setFilter('all')">הכל</span>
+        <span class="chip" id="f-dup" onclick="setFilter('dup')">כפילויות בלבד</span>
+        <span class="chip" id="f-noid" onclick="setFilter('noid')">ללא ת"ז</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead><tr>
+            <th style="width:26%">שם</th>
+            <th style="width:14%">ת"ז</th>
+            <th style="width:20%">גוש / חלקה</th>
+            <th style="width:22%">כתובת</th>
+            <th style="width:10%">סורק ע"י</th>
+            <th style="width:8%">סטטוס</th>
+          </tr></thead>
+          <tbody id="db-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- טאב כפילויות -->
+    <div id="panel-dups" class="panel">
+      <div id="dups-content"><div class="empty">טוען נתונים...</div></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ===== CONFIG =====
+const CLIENT_ID = '333500638235-ink0tr6n0p02331lbiqramq53vctr712.apps.googleusercontent.com';
+const SHEET_ID = '1wi6EHMj6LE_jBsQAqFky7Mntf6LJtJVUgO3-9tVIvAA';
+const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
+const SHEET_NAME = 'בעלים';
+const HEADERS = ['שם פרטי','שם משפחה','ת"ז','גוש','חלקה','תת-חלקה','כתובת','קובץ מקור','תאריך סריקה','סורק ע"י','כפיל'];
+
+// ===== STATE =====
+let tokenClient;
+let accessToken = null;
+let currentUser = '';
+let scanFiles = [];
+let allOwners = [];
+let activeFilter = 'all';
+
+// ===== AUTH =====
+window.onload = () => {
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: SCOPES,
+    callback: async (resp) => {
+      if (resp.error) return;
+      accessToken = resp.access_token;
+      // get user info
+      try {
+        const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: 'Bearer ' + accessToken }
+        });
+        const u = await r.json();
+        currentUser = u.name || u.email || 'משתמש';
+        document.getElementById('auth-area-top').innerHTML = `
+          <div class="user-info">
+            <span>שלום, ${currentUser}</span>
+            <button class="signout" onclick="signOut()">התנתק</button>
+          </div>`;
+      } catch(e) {}
+      document.getElementById('auth-screen').classList.add('hidden');
+      document.getElementById('main-content').classList.remove('hidden');
+      await ensureSheetReady();
+      await loadFromSheets();
+    }
+  });
+};
+
+function signIn() {
+  tokenClient.requestAccessToken();
+}
+
+function signOut() {
+  google.accounts.oauth2.revoke(accessToken);
+  accessToken = null;
+  document.getElementById('auth-screen').classList.remove('hidden');
+  document.getElementById('main-content').classList.add('hidden');
+  document.getElementById('auth-area-top').innerHTML = `<button class="auth-btn" onclick="signIn()">התחבר עם Google</button>`;
+}
+
+// ===== SHEETS =====
+async function sheetsRequest(method, endpoint, body) {
+  const r = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}${endpoint}`, {
+    method,
+    headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  return r.json();
+}
+
+async function ensureSheetReady() {
+  // Check if sheet exists, create headers if needed
+  try {
+    const data = await sheetsRequest('GET', `/values/${encodeURIComponent(SHEET_NAME+'!A1:A1')}`);
+    if (!data.values) {
+      // Add headers
+      await sheetsRequest('PUT', `/values/${encodeURIComponent(SHEET_NAME+'!A1')}?valueInputOption=RAW`, {
+        values: [HEADERS]
+      });
+    }
+  } catch(e) {
+    // Sheet tab might not exist - try to add it
+    try {
+      await sheetsRequest('POST', ':batchUpdate', {
+        requests: [{ addSheet: { properties: { title: SHEET_NAME } } }]
+      });
+      await sheetsRequest('PUT', `/values/${encodeURIComponent(SHEET_NAME+'!A1')}?valueInputOption=RAW`, {
+        values: [HEADERS]
+      });
+    } catch(e2) {}
+  }
+}
+
+async function loadFromSheets() {
+  if (!accessToken) return;
+  try {
+    const data = await sheetsRequest('GET', `/values/${encodeURIComponent(SHEET_NAME+'!A2:K5000')}`);
+    const rows = data.values || [];
+    allOwners = rows.map(r => ({
+      first: r[0]||'', last: r[1]||'', id: r[2]||'',
+      gush: r[3]||'', helka: r[4]||'', tat: r[5]||'',
+      address: r[6]||'', sourceFile: r[7]||'',
+      date: r[8]||'', scannedBy: r[9]||''
+    }));
+    updateSummary();
+    renderDB();
+    renderDups();
+  } catch(e) {
+    console.error('Load error:', e);
+  }
+}
+
+async function appendToSheets(rows) {
+  await sheetsRequest('POST', `/values/${encodeURIComponent(SHEET_NAME+'!A1')}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
+    values: rows
+  });
+}
+
+// ===== FILE UPLOAD =====
+document.getElementById('file-input').addEventListener('change', e => {
+  Array.from(e.target.files).forEach(f => {
+    if (!scanFiles.find(x => x.name === f.name)) scanFiles.push(f);
+  });
+  renderPills();
+  document.getElementById('scan-btn').disabled = !scanFiles.length;
+});
+
+const zone = document.getElementById('upload-zone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+zone.addEventListener('drop', e => {
+  e.preventDefault(); zone.classList.remove('drag');
+  Array.from(e.dataTransfer.files).forEach(f => {
+    if (!scanFiles.find(x => x.name === f.name)) scanFiles.push(f);
+  });
+  renderPills();
+  document.getElementById('scan-btn').disabled = !scanFiles.length;
+});
+
+function renderPills() {
+  document.getElementById('file-pills').innerHTML = scanFiles.map((f,i) => `
+    <span class="file-pill">
+      📄 ${f.name}
+      <span class="x" onclick="removeFile(${i})">×</span>
+    </span>`).join('');
+}
+function removeFile(i) {
+  scanFiles.splice(i, 1);
+  renderPills();
+  document.getElementById('scan-btn').disabled = !scanFiles.length;
+}
+
+function addLog(msg) {
+  const el = document.getElementById('scan-log');
+  el.classList.remove('hidden');
+  const d = document.createElement('div');
+  d.textContent = msg;
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+}
+
+async function fileToB64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = e => res(e.target.result.split(',')[1]);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+function norm(s) { return String(s||'').trim().replace(/\s+/g,' ').replace(/['"״׳]/g,''); }
+function ownerKey(o) {
+  const id = (o.id||'').replace(/\D/g,'');
+  if (id.length >= 8) return 'id:'+id;
+  return 'name:'+[norm(o.first).toLowerCase(), norm(o.last).toLowerCase()].filter(Boolean).sort().join('|');
+}
+
+async function runScan() {
+  const btn = document.getElementById('scan-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> מסרק...';
+  document.getElementById('scan-log').innerHTML = '';
+
+  const today = new Date().toLocaleDateString('he-IL');
+  const newRows = [];
+
+  for (let i = 0; i < scanFiles.length; i++) {
+    const f = scanFiles[i];
+    addLog(`📄 (${i+1}/${scanFiles.length}) ${f.name}`);
+    try {
+      const b64 = await fileToB64(f);
+      const mt = f.type || (f.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
+      const contentItem = mt.startsWith('image/')
+        ? { type:'image', source:{type:'base64', media_type:mt, data:b64} }
+        : { type:'document', source:{type:'base64', media_type:'application/pdf', data:b64} };
+
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 1500,
+          messages: [{ role:'user', content:[
+            contentItem,
+            { type:'text', text:`זהו נסח טאבו ישראלי. החזר JSON בלבד ללא markdown:
+{
+  "gush": "מספר גוש או null",
+  "helka": "מספר חלקה או null",
+  "tatHelka": "מספר תת-חלקה או null",
+  "address": "כתובת הנכס או null",
+  "owners": [
+    { "first": "שם פרטי", "last": "שם משפחה", "id": "9 ספרות ת"ז או null" }
+  ]
+}` }
+          ]}]
+        })
+      });
+
+      const data = await resp.json();
+      const text = (data.content||[]).map(c=>c.text||'').join('');
+      let parsed = {};
+      try { parsed = JSON.parse(text.replace(/```json|```/g,'').trim()); } catch(e) { addLog('  ⚠ שגיאת קריאה'); continue; }
+
+      const owners = Array.isArray(parsed.owners) ? parsed.owners : [];
+      let added = 0;
+      owners.forEach(o => {
+        if (!o.first && !o.last) return;
+        const entry = {
+          first: norm(o.first||''), last: norm(o.last||''),
+          id: (o.id||'').replace(/\D/g,''),
+          gush: parsed.gush||'', helka: parsed.helka||'', tat: parsed.tatHelka||'',
+          address: parsed.address||'', sourceFile: f.name,
+          date: today, scannedBy: currentUser
+        };
+        newRows.push([entry.first, entry.last, entry.id, entry.gush, entry.helka, entry.tat, entry.address, entry.sourceFile, entry.date, entry.scannedBy, '']);
+        allOwners.push(entry);
+        added++;
+      });
+      addLog(`  ✓ ${added} בעלים נוספו למאגר`);
+    } catch(err) {
+      addLog(`  ✗ שגיאה: ${err.message}`);
+    }
+  }
+
+  if (newRows.length > 0) {
+    addLog('💾 שומר לגיליון המשותף...');
+    try {
+      await appendToSheets(newRows);
+      await loadFromSheets(); // reload to get updated dup status
+      addLog('✅ נשמר בהצלחה לגיליון המשותף!');
+    } catch(e) {
+      addLog('⚠ שגיאה בשמירה: ' + e.message);
+    }
+  }
+
+  document.getElementById('status-bar').classList.remove('hidden');
+  document.getElementById('status-text').textContent = `הסריקה הושלמה — ${newRows.length} בעלים נוספו`;
+  btn.innerHTML = '🔍 סרוק והוסף למאגר';
+  btn.disabled = false;
+  scanFiles = [];
+  renderPills();
+  updateSummary();
+  renderDups();
+}
+
+// ===== DB & DUPS =====
+function getDupKeys() {
+  const counts = {};
+  allOwners.forEach(o => { const k=ownerKey(o); counts[k]=(counts[k]||0)+1; });
+  const dups = new Set();
+  Object.entries(counts).forEach(([k,v]) => { if(v>1) dups.add(k); });
+  return dups;
+}
+
+function updateSummary() {
+  const dupKeys = getDupKeys();
+  document.getElementById('s-total').textContent = allOwners.length;
+  document.getElementById('s-files').textContent = new Set(allOwners.map(o=>o.sourceFile)).size;
+  document.getElementById('s-dups').textContent = dupKeys.size;
+  const tab = document.getElementById('dup-count-tab');
+  if (dupKeys.size > 0) { tab.textContent = dupKeys.size; tab.style.display='inline'; }
+  else { tab.style.display='none'; }
+}
+
+function setFilter(f) {
+  activeFilter = f;
+  ['all','dup','noid'].forEach(x => document.getElementById('f-'+x).classList.toggle('on', x===f));
+  renderDB();
+}
+
+function renderDB() {
+  const q = (document.getElementById('db-search').value||'').toLowerCase().trim();
+  const dupKeys = getDupKeys();
+  let rows = allOwners.map(o => ({ ...o, _dup: dupKeys.has(ownerKey(o)) }));
+  if (activeFilter==='dup') rows = rows.filter(r=>r._dup);
+  if (activeFilter==='noid') rows = rows.filter(r=>!r.id||r.id.length<8);
+  if (q) rows = rows.filter(r => [r.first,r.last,r.id,r.gush,r.helka,r.address].join(' ').toLowerCase().includes(q));
+  const tbody = document.getElementById('db-body');
+  if (!rows.length) { tbody.innerHTML=`<tr><td colspan="6"><div class="empty">אין רשומות</div></td></tr>`; return; }
+  tbody.innerHTML = rows.map(r => `
+    <tr class="${r._dup?'dup':''}">
+      <td style="font-weight:600">${r.first} ${r.last}</td>
+      <td style="color:#6B7280;font-size:12px;">${r.id||'—'}</td>
+      <td style="font-size:12px;color:#6B7280;">${[r.gush&&'ג'+r.gush,r.helka&&'ח'+r.helka,r.tat&&'ת'+r.tat].filter(Boolean).join('/')}</td>
+      <td style="font-size:12px;color:#6B7280;">${r.address||'—'}</td>
+      <td style="font-size:12px;color:#6B7280;">${r.scannedBy||'—'}</td>
+      <td>${r._dup?'<span class="badge badge-dup">כפיל</span>':'<span class="badge badge-ok">ייחודי</span>'}</td>
+    </tr>`).join('');
+}
+
+function renderDups() {
+  const dupKeys = getDupKeys();
+  const content = document.getElementById('dups-content');
+  if (!dupKeys.size) {
+    content.innerHTML = `<div class="empty">✅ לא נמצאו כפילויות במאגר</div>`;
+    return;
+  }
+  const groups = {};
+  allOwners.forEach(o => {
+    const k = ownerKey(o);
+    if (dupKeys.has(k)) { if(!groups[k]) groups[k]=[]; groups[k].push(o); }
+  });
+  content.innerHTML = Object.values(groups).map(entries => {
+    const rep = entries[0];
+    return `<div class="dup-card">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
+        <div style="width:40px;height:40px;border-radius:50%;background:#FDE68A;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#92400E;flex-shrink:0;">${(rep.first[0]||'?')}${(rep.last[0]||'')}</div>
+        <div>
+          <div class="dup-name">${rep.first} ${rep.last}</div>
+          <div class="dup-meta">${rep.id||'ללא ת"ז'} · מופיע ${entries.length} פעמים</div>
+        </div>
+        <span class="badge badge-dup" style="margin-right:auto;">${entries.length} נסחים</span>
+      </div>
+      <div class="loc-tags">
+        ${entries.map(e=>`<span class="loc-tag">
+          ${[e.gush&&'גוש '+e.gush, e.helka&&'חלקה '+e.helka].filter(Boolean).join('/')||e.sourceFile}
+          ${e.address?' · '+e.address:''}
+          ${e.scannedBy?' · '+e.scannedBy:''}
+        </span>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function exportXLSX() {
+  const dupKeys = getDupKeys();
+  const rows = [HEADERS];
+  allOwners.forEach(o => {
+    rows.push([o.first,o.last,o.id||'',o.gush||'',o.helka||'',o.tat||'',o.address||'',o.sourceFile||'',o.date||'',o.scannedBy||'',dupKeys.has(ownerKey(o))?'כן':'לא']);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'בעלים');
+  XLSX.writeFile(wb, 'מאגר_בעלים_אלרון.xlsx');
+}
+
+function switchTab(t) {
+  document.querySelectorAll('.tab').forEach((el,i) => el.classList.toggle('active', ['scan','db','dups'][i]===t));
+  document.querySelectorAll('.panel').forEach(el => el.classList.remove('active'));
+  document.getElementById('panel-'+t).classList.add('active');
+  if (t==='db') renderDB();
+  if (t==='dups') renderDups();
+}
+</script>
+</body>
+</html>
