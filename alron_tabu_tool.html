@@ -122,6 +122,13 @@
   <!-- תוכן ראשי -->
   <div id="main-content" class="hidden">
 
+    <div id="apikey-bar" style="background:#FEF3C7;border:1px solid #FDE68A;border-radius:10px;padding:0.75rem 1rem;margin-bottom:1rem;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span style="font-size:13px;font-weight:600;color:#92400E;">🔑 מפתח Anthropic API:</span>
+      <input id="apikey-input" type="password" placeholder="sk-ant-api03-..." style="flex:1;min-width:200px;font-size:13px;padding:6px 10px;border-radius:6px;border:1px solid #FDE68A;background:#fff;" />
+      <button onclick="saveApiKey()" style="padding:6px 14px;background:#92400E;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;">שמור</button>
+      <span id="apikey-status" style="font-size:12px;color:#065F46;"></span>
+    </div>
+
     <div class="tabs">
       <div class="tab active" onclick="switchTab('scan')">📤 סריקת נסחים</div>
       <div class="tab" onclick="switchTab('db')">🗃 מאגר בעלים</div>
@@ -208,6 +215,7 @@ let activeFilter = 'all';
 
 // ===== AUTH =====
 window.onload = () => {
+  window._anthropicKey = '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';
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: CLIENT_ID,
     scope: SCOPES,
@@ -237,6 +245,15 @@ window.onload = () => {
 
 function signIn() {
   tokenClient.requestAccessToken();
+}
+
+function saveApiKey() {
+  const key = document.getElementById('apikey-input').value.trim();
+  if (!key.startsWith('sk-ant-')) { alert('מפתח לא תקין'); return; }
+  window._anthropicKey = key;
+  document.getElementById('apikey-status').textContent = '✓ נשמר';
+  document.getElementById('apikey-bar').style.background = '#D1FAE5';
+  document.getElementById('apikey-bar').style.borderColor = '#6EE7B7';
 }
 
 function signOut() {
@@ -385,7 +402,7 @@ async function runScan() {
 
       const resp = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': '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', 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+        headers: { 'Content-Type': 'application/json', 'x-api-key': window._anthropicKey || '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', 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
         body: JSON.stringify({
           model: 'claude-sonnet-4-6',
           max_tokens: 1500,
